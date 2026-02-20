@@ -58,19 +58,19 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public MethodHookHandle hook(@NonNull Method origin, int priority, @NonNull Class<? extends Hooker> hooker) {
+    public final MethodHookHandle hook(@NonNull Method origin, int priority, @NonNull Class<? extends Hooker> hooker) {
         return mBase.hook(origin, priority, hooker);
     }
 
     @NonNull
     @Override
-    public <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, int priority, @NonNull Class<? extends Hooker> hooker) {
+    public final <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, int priority, @NonNull Class<? extends Hooker> hooker) {
         return mBase.hook(origin, priority, hooker);
     }
 
     @NonNull
     @Override
-    public <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Class<? extends Hooker> hooker) {
+    public final <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Class<? extends Hooker> hooker) {
         return mBase.hookClassInitializer(origin, priority, hooker);
     }
 
@@ -86,7 +86,7 @@ public class XposedInterfaceWrapper implements XposedInterface {
     }
 
     @Override
-    public <T> void invokeOrigin(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
+    public final <T> void invokeOrigin(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
         mBase.invokeOrigin(constructor, thisObject, args);
     }
 
@@ -103,7 +103,7 @@ public class XposedInterfaceWrapper implements XposedInterface {
     }
 
     @Override
-    public <T> void invokeSpecial(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
+    public final <T> void invokeSpecial(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
         mBase.invokeSpecial(constructor, thisObject, args);
     }
 
@@ -126,25 +126,25 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public SharedPreferences getRemotePreferences(@NonNull String name) {
+    public final SharedPreferences getRemotePreferences(@NonNull String name) {
         return mBase.getRemotePreferences(name);
     }
 
     @NonNull
     @Override
-    public ApplicationInfo getApplicationInfo() {
+    public final ApplicationInfo getApplicationInfo() {
         return mBase.getApplicationInfo();
     }
 
     @NonNull
     @Override
-    public String[] listRemoteFiles() {
+    public final String[] listRemoteFiles() {
         return mBase.listRemoteFiles();
     }
 
     @NonNull
     @Override
-    public ParcelFileDescriptor openRemoteFile(@NonNull String name) throws FileNotFoundException {
+    public final ParcelFileDescriptor openRemoteFile(@NonNull String name) throws FileNotFoundException {
         return mBase.openRemoteFile(name);
     }
 }
