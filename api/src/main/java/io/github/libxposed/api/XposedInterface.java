@@ -257,7 +257,7 @@ public interface XposedInterface {
          * @param args       The arguments used for the construction
          * @see Constructor#newInstance(Object...)
          */
-        void invokeOrigin(@Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+        void invokeOrigin(@NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
 
         /**
          * Invoke the original constructor, but keeps all higher priority hooks.
