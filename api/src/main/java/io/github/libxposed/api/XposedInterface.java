@@ -266,6 +266,7 @@ public interface XposedInterface {
          * @return The instance created and initialized by the constructor
          * @see Constructor#newInstance(Object...)
          */
+        @NonNull
         T newInstanceOrigin(Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
     }
 
@@ -356,7 +357,7 @@ public interface XposedInterface {
      * the deoptimized callers are all you need. Otherwise, it would be better to change the hook point or
      * to deoptimize the whole app manually (by simply reinstalling the app without uninstall).</p>
      *
-     * @param executable The method to deoptimize
+     * @param executable The method / constructor to deoptimize
      * @return Indicate whether the deoptimizing succeed or not
      */
     boolean deoptimize(@NonNull Executable executable);
