@@ -229,6 +229,47 @@ public interface XposedInterface {
     }
 
     /**
+     * Handle for a method hook.
+     */
+    interface MethodHookHandle extends HookHandle<Method> {
+        /**
+         * Invoke the original method, but keeps all higher priority hooks.
+         *
+         * @param thisObject For non-static calls, the {@code this} pointer, otherwise {@code null}
+         * @param args       The arguments used for the method call
+         * @return The result returned from the invoked method
+         * @see Method#invoke(Object, Object...)
+         */
+        @Nullable
+        Object invokeOrigin(@Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+    }
+
+    /**
+     * Handle for a constructor hook.
+     *
+     * @param <T> The type of the constructor
+     */
+    interface CtorHookHandle<T> extends HookHandle<Constructor<T>> {
+        /**
+         * Invoke the original constructor as a method, but keeps all higher priority hooks.
+         *
+         * @param thisObject The instance to be constructed
+         * @param args       The arguments used for the construction
+         * @see Constructor#newInstance(Object...)
+         */
+        void invokeOrigin(@Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+
+        /**
+         * Invoke the original constructor, but keeps all higher priority hooks.
+         *
+         * @param args The arguments used for the construction
+         * @return The instance created and initialized by the constructor
+         * @see Constructor#newInstance(Object...)
+         */
+        T newInstanceOrigin(Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
+    }
+
+    /**
      * Gets the Xposed framework name of current implementation.
      *
      * @return Framework name
@@ -259,9 +300,9 @@ public interface XposedInterface {
     int getFrameworkPrivilege();
 
     /**
-     * Hook a method / constructor with specified priority.
+     * Hook a method with specified priority.
      *
-     * @param origin   The method / constructor to be hooked
+     * @param origin   The method to be hooked
      * @param priority The hook priority
      * @param hooker   The hooker class
      * @return Handle for the hook
@@ -270,7 +311,21 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T extends Executable> HookHandle<T> hook(@NonNull T origin, int priority, @NonNull Class<? extends Hooker> hooker);
+    MethodHookHandle hook(@NonNull Method origin, int priority, @NonNull Class<? extends Hooker> hooker);
+
+    /**
+     * Hook a constructor with specified priority.
+     *
+     * @param origin   The constructor to be hooked
+     * @param priority The hook priority
+     * @param hooker   The hooker class
+     * @return Handle for the hook
+     * @throws IllegalArgumentException if origin is framework internal or {@link Constructor#newInstance},
+     *                                  or hooker is invalid
+     * @throws HookFailedError          if hook fails due to framework internal error
+     */
+    @NonNull
+    <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, int priority, @NonNull Class<? extends Hooker> hooker);
 
     /**
      * Hook the static initializer of a class with specified priority.
@@ -286,7 +341,7 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T> HookHandle<Constructor<T>> hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Class<? extends Hooker> hooker);
+    <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Class<? extends Hooker> hooker);
 
     /**
      * Deoptimizes a method / constructor in case hooked callee is not called because of inline.
@@ -308,6 +363,7 @@ public interface XposedInterface {
 
     /**
      * Basically the same as {@link Method#invoke(Object, Object...)}, but skips all Xposed hooks.
+     * If you do not want to skip higher priority hooks, use {@link MethodHookHandle#invokeOrigin(Object, Object...)} instead.
      *
      * @param method     The method to be called
      * @param thisObject For non-static calls, the {@code this} pointer, otherwise {@code null}
@@ -320,6 +376,7 @@ public interface XposedInterface {
 
     /**
      * Invoke the constructor as a method, but skips all Xposed hooks.
+     * If you do not want to skip higher priority hooks, use {@link CtorHookHandle#invokeOrigin(Object, Object...)} instead.
      *
      * @param constructor The constructor to create and initialize a new instance
      * @param thisObject  The instance to be constructed
@@ -331,6 +388,7 @@ public interface XposedInterface {
 
     /**
      * Basically the same as {@link Constructor#newInstance(Object...)}, but skips all Xposed hooks.
+     * If you do not want to skip higher priority hooks, use {@link CtorHookHandle#newInstanceOrigin(Object...)} instead.
      *
      * @param <T>         The type of the constructor
      * @param constructor The constructor to create and initialize a new instance
