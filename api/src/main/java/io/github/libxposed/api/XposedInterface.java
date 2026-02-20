@@ -29,22 +29,17 @@ public interface XposedInterface {
     int API = 100;
 
     /**
-     * Indicates that the framework is running as root.
+     * The framework has the capability to hook system_server and other system processes.
      */
-    int FRAMEWORK_PRIVILEGE_ROOT = 0;
+    long CAP_SYSTEM = 1;
     /**
-     * Indicates that the framework is running in a container with a fake system_server.
+     * The framework provides remote preferences and remote files support.
      */
-    int FRAMEWORK_PRIVILEGE_CONTAINER = 1;
+    long CAP_REMOTE = 1 << 1;
     /**
-     * Indicates that the framework is running as a different app, which may have at most shell permission.
+     * The framework allows dynamically loaded code to use Xposed APIs.
      */
-    int FRAMEWORK_PRIVILEGE_APP = 2;
-    /**
-     * Indicates that the framework is embedded in the hooked app,
-     * which means {@link #getRemotePreferences} will be null and remote file is unsupported.
-     */
-    int FRAMEWORK_PRIVILEGE_EMBEDDED = 3;
+    long CAP_RT_API_REFLECTION = 1 << 2;
 
     /**
      * The default hook priority.
@@ -294,11 +289,12 @@ public interface XposedInterface {
     long getFrameworkVersionCode();
 
     /**
-     * Gets the Xposed framework privilege of current implementation.
+     * Gets the Xposed framework capabilities.
+     * Capabilities with prefix CAP_RT_ may change among launches.
      *
-     * @return Framework privilege
+     * @return Framework capabilities
      */
-    int getFrameworkPrivilege();
+    long getFrameworkCapabilities();
 
     /**
      * Hook a method with specified priority.
