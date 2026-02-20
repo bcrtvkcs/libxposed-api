@@ -118,16 +118,6 @@ public class XposedInterfaceWrapper implements XposedInterface {
         mBase.log(priority, tag, msg, tr);
     }
 
-    @Override
-    public final void log(@NonNull String message) {
-        mBase.log(message);
-    }
-
-    @Override
-    public final void log(@NonNull String message, @NonNull Throwable throwable) {
-        mBase.log(message, throwable);
-    }
-
     @Nullable
     @Override
     public final DexParser parseDex(@NonNull ByteBuffer dexData, boolean includeAnnotations) throws IOException {
