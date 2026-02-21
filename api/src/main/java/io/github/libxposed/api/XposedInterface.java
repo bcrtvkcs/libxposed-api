@@ -24,11 +24,6 @@ import io.github.libxposed.api.utils.DexParser;
 @SuppressWarnings("unused")
 public interface XposedInterface {
     /**
-     * SDK API version.
-     */
-    int API = 100;
-
-    /**
      * The framework has the capability to hook system_server and other system processes.
      */
     long CAP_SYSTEM = 1;
@@ -274,6 +269,13 @@ public interface XposedInterface {
         @NonNull
         T newInstanceOrigin(Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
     }
+
+    /**
+     * Gets the Xposed API version of current implementation.
+     *
+     * @return API version
+     */
+    int getApiVersion();
 
     /**
      * Gets the Xposed framework name of current implementation.
