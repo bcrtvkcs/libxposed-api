@@ -350,7 +350,7 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Hooker<Method> hooker);
+    MethodHookHandle hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull Hooker<Method> hooker);
 
     /**
      * Deoptimizes a method / constructor in case hooked callee is not called because of inline.

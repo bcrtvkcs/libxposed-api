@@ -91,7 +91,7 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public final <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Hooker<Method> hooker) {
+    public final MethodHookHandle hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull Hooker<Method> hooker) {
         ensureAttached();
         return mBase.hookClassInitializer(origin, priority, hooker);
     }
