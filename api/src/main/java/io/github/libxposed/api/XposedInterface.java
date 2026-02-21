@@ -152,57 +152,67 @@ public interface XposedInterface {
     }
 
     /**
-     * Interface for method / constructor hooking. Xposed modules should define their own hooker class
-     * and implement this interface. Normally, a hooker class corresponds to a method / constructor, but
-     * there could also be a single hooker class for all of them. By this way you can implement an interface
-     * like the old API.
-     *
-     * <p>
-     * Classes implementing this interface should should provide two public static methods named
-     * before and after for before invocation and after invocation respectively.
-     * </p>
-     *
-     * <p>
-     * The before invocation method should have the following signature:<br/>
-     * Param {@code callback}: The {@link BeforeHookCallback} of the procedure call.<br/>
-     * Return value: If you want to save contextual information of one procedure call between the before
-     * and after callback, it could be a self-defined class, otherwise it should be {@code void}.
-     * </p>
-     *
-     * <p>
-     * The after invocation method should have the following signature:<br/>
-     * Param {@code callback}: The {@link AfterHookCallback} of the procedure call.<br/>
-     * Param {@code context} (optional): The contextual object returned by the before invocation.
-     * </p>
+     * Interface for method / constructor hooking.
      *
      * <p>Example usage:</p>
      *
      * <pre>{@code
-     *   public class ExampleHooker implements Hooker {
+     *   public class ExampleHooker implements VoidHooker<Method> {
      *
-     *       public static void before(@NonNull BeforeHookCallback<Method> callback) {
+     *       @Override
+     *       void before(@NonNull BeforeHookCallback<Method> callback) {
      *           // Pre-hooking logic goes here
      *       }
      *
-     *       public static void after(@NonNull AfterHookCallback<Method> callback) {
+     *       @Override
+     *       void after(@NonNull AfterHookCallback<Method> callback) {
      *           // Post-hooking logic goes here
      *       }
      *   }
      *
-     *   public class ExampleHookerWithContext implements Hooker {
+     *   public class ExampleHookerWithContext implements ContextualHooker<Method, MyContext> {
      *
-     *       public static MyContext before(@NonNull BeforeHookCallback<Method> callback) {
+     *       @Override
+     *       MyContext before(@NonNull BeforeHookCallback<Method> callback) {
      *           // Pre-hooking logic goes here
      *           return new MyContext();
      *       }
      *
-     *       public static void after(@NonNull AfterHookCallback<Method> callback, MyContext context) {
+     *       @Override
+     *       void after(@NonNull AfterHookCallback<Method> callback, MyContext context) {
      *           // Post-hooking logic goes here
      *       }
      *   }
      * }</pre>
      */
-    interface Hooker {
+    interface Hooker<T extends Executable> {
+    }
+
+    /**
+     * A hooker without context.
+     */
+    interface VoidHooker<T extends Executable> extends Hooker<T> {
+
+        default void before(@NonNull BeforeHookCallback<Method> callback) {
+        }
+
+        default void after(@NonNull AfterHookCallback<Method> callback) {
+        }
+    }
+
+    /**
+     * A hooker with context. The context object is guaranteed to be the same between before and after
+     * invocation.
+     *
+     * @param <C> The type of the context
+     */
+    interface ContextualHooker<T extends Executable, C> extends Hooker<T> {
+        default C before(@NonNull BeforeHookCallback<T> callback) {
+            return null;
+        }
+
+        default void after(@NonNull AfterHookCallback<T> callback, @Nullable C context) {
+        }
     }
 
     /**
@@ -301,28 +311,28 @@ public interface XposedInterface {
      *
      * @param origin   The method to be hooked
      * @param priority The hook priority
-     * @param hooker   The hooker class
+     * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is abstract, framework internal or {@link Method#invoke},
      *                                  or hooker is invalid
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    MethodHookHandle hook(@NonNull Method origin, int priority, @NonNull Class<? extends Hooker> hooker);
+    MethodHookHandle hook(@NonNull Method origin, int priority, @NonNull Hooker<Method> hooker);
 
     /**
      * Hook a constructor with specified priority.
      *
      * @param origin   The constructor to be hooked
      * @param priority The hook priority
-     * @param hooker   The hooker class
+     * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is framework internal or {@link Constructor#newInstance},
      *                                  or hooker is invalid
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, int priority, @NonNull Class<? extends Hooker> hooker);
+    <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, int priority, @NonNull Hooker<Constructor<T>> hooker);
 
     /**
      * Hook the static initializer of a class with specified priority.
@@ -332,13 +342,13 @@ public interface XposedInterface {
      *
      * @param origin   The class to be hooked
      * @param priority The hook priority
-     * @param hooker   The hooker class
+     * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if class has no static initializer or hooker is invalid
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Class<? extends Hooker> hooker);
+    <T> MethodHookHandle hookClassInitializer(@NonNull Class<T> origin, int priority, @NonNull Hooker<Method> hooker);
 
     /**
      * Deoptimizes a method / constructor in case hooked callee is not called because of inline.
