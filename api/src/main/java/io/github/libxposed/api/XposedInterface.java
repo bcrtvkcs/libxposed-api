@@ -26,15 +26,15 @@ public interface XposedInterface {
     /**
      * The framework has the capability to hook system_server and other system processes.
      */
-    long CAP_SYSTEM = 1;
+    long CAP_SYSTEM = 1L;
     /**
      * The framework provides remote preferences and remote files support.
      */
-    long CAP_REMOTE = 1 << 1;
+    long CAP_REMOTE = 1L << 1;
     /**
      * The framework allows dynamically loaded code to use Xposed APIs.
      */
-    long CAP_RT_API_REFLECTION = 1 << 2;
+    long CAP_RT_API_REFLECTION = 1L << 2;
 
     /**
      * The default hook priority.
