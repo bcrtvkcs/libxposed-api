@@ -181,6 +181,16 @@ public interface XposedInterface {
      * }</pre>
      */
     interface Hooker<T extends Executable> {
+        /**
+         * Returns the priority of the hook. Hooks with higher priority will be executed first. The default
+         * priority is {@link #PRIORITY_DEFAULT}. Make sure the value is consistent after the hooker is installed,
+         * otherwise the behavior is undefined.
+         *
+         * @return The priority of the hook
+         */
+        default int getPriority() {
+            return PRIORITY_DEFAULT;
+        }
     }
 
     /**
@@ -312,7 +322,6 @@ public interface XposedInterface {
      * Hook a method with specified priority.
      *
      * @param origin   The method to be hooked
-     * @param priority The hook priority
      * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is abstract, framework internal or {@link Method#invoke},
@@ -320,13 +329,12 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    MethodHookHandle hook(@NonNull Method origin, int priority, @NonNull Hooker<Method> hooker);
+    MethodHookHandle hook(@NonNull Method origin, @NonNull Hooker<Method> hooker);
 
     /**
      * Hook a constructor with specified priority.
      *
      * @param origin   The constructor to be hooked
-     * @param priority The hook priority
      * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is framework internal or {@link Constructor#newInstance},
@@ -334,7 +342,7 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, int priority, @NonNull Hooker<Constructor<T>> hooker);
+    <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, @NonNull Hooker<Constructor<T>> hooker);
 
     /**
      * Hook the static initializer of a class with specified priority.
@@ -343,14 +351,13 @@ public interface XposedInterface {
      * </p>
      *
      * @param origin   The class to be hooked
-     * @param priority The hook priority
      * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if class has no static initializer or hooker is invalid
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    MethodHookHandle hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull Hooker<Method> hooker);
+    MethodHookHandle hookClassInitializer(@NonNull Class<?> origin, @NonNull Hooker<Method> hooker);
 
     /**
      * Deoptimizes a method / constructor in case hooked callee is not called because of inline.
