@@ -152,7 +152,7 @@ public interface XposedInterface {
      * <p>Example usage:</p>
      *
      * <pre>{@code
-     *   public class ExampleHooker implements VoidHooker<Method> {
+     *   public class ExampleHooker implements SimpleHooker<Method> {
      *
      *       @Override
      *       void before(@NonNull BeforeHookCallback<Method> callback) {
@@ -196,7 +196,7 @@ public interface XposedInterface {
     /**
      * A hooker without context.
      */
-    interface VoidHooker<T extends Executable> extends Hooker<T> {
+    interface SimpleHooker<T extends Executable> extends Hooker<T> {
 
         default void before(@NonNull BeforeHookCallback<T> callback) {
         }
