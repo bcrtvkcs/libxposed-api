@@ -319,7 +319,7 @@ public interface XposedInterface {
     long getFrameworkCapabilities();
 
     /**
-     * Hook a method with specified priority.
+     * Hook a method.
      *
      * @param origin   The method to be hooked
      * @param hooker   The hooker object
@@ -332,7 +332,7 @@ public interface XposedInterface {
     MethodHookHandle hook(@NonNull Method origin, @NonNull Hooker<Method> hooker);
 
     /**
-     * Hook a constructor with specified priority.
+     * Hook a constructor.
      *
      * @param origin   The constructor to be hooked
      * @param hooker   The hooker object
@@ -345,7 +345,7 @@ public interface XposedInterface {
     <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, @NonNull Hooker<Constructor<T>> hooker);
 
     /**
-     * Hook the static initializer of a class with specified priority.
+     * Hook the static initializer of a class.
      * <p>
      * Note: If the class is initialized, the hook will never be called.
      * </p>
