@@ -198,10 +198,10 @@ public interface XposedInterface {
      */
     interface VoidHooker<T extends Executable> extends Hooker<T> {
 
-        default void before(@NonNull BeforeHookCallback<Method> callback) {
+        default void before(@NonNull BeforeHookCallback<T> callback) {
         }
 
-        default void after(@NonNull AfterHookCallback<Method> callback) {
+        default void after(@NonNull AfterHookCallback<T> callback) {
         }
     }
 
