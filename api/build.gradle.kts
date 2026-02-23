@@ -11,7 +11,7 @@ android {
     androidResources.enable = false
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 26
         consumerProguardFiles("proguard-rules.pro")
     }
 

@@ -90,6 +90,16 @@ public interface XposedModuleInterface {
     }
 
     /**
+     * Gets notified when the module is loaded into the target process.<br/>
+     * This callback is guaranteed to be called exactly once for a process before
+     * {@link android.app.AppComponentFactory} is created.
+     *
+     * @param param Information about the process in which the module is loaded
+     */
+    default void onModuleLoaded(@NonNull ModuleLoadedParam param) {
+    }
+
+    /**
      * Gets notified when a package is loaded into the app process.<br/>
      * This callback could be invoked multiple times for the same process on each package.
      *
