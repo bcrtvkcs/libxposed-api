@@ -11,7 +11,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
@@ -77,23 +76,37 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public final MethodHookHandle hook(@NonNull Method origin, @NonNull Hooker<Method> hooker) {
+    public final HookHandle<Method> hook(@NonNull Method origin, @NonNull MethodHooker hooker) {
         ensureAttached();
         return mBase.hook(origin, hooker);
     }
 
     @NonNull
     @Override
-    public final <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, @NonNull Hooker<Constructor<T>> hooker) {
+    public final <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, @NonNull CtorHooker<T> hooker) {
         ensureAttached();
         return mBase.hook(origin, hooker);
     }
 
     @NonNull
     @Override
-    public final MethodHookHandle hookClassInitializer(@NonNull Class<?> origin, @NonNull Hooker<Method> hooker) {
+    public HookHandle<Method> hook(@NonNull Method origin, int priority, @NonNull MethodHooker hooker) {
+        ensureAttached();
+        return mBase.hook(origin, priority, hooker);
+    }
+
+    @NonNull
+    @Override
+    public final HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, @NonNull MethodHooker hooker) {
         ensureAttached();
         return mBase.hookClassInitializer(origin, hooker);
+    }
+
+    @NonNull
+    @Override
+    public <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, int priority, @NonNull CtorHooker<T> hooker) {
+        ensureAttached();
+        return mBase.hook(origin, priority, hooker);
     }
 
     @Override
@@ -102,44 +115,25 @@ public class XposedInterfaceWrapper implements XposedInterface {
         return mBase.deoptimize(executable);
     }
 
-    @Nullable
+    @NonNull
     @Override
-    public final Object invokeOrigin(@NonNull Method method, @Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
+    public HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull MethodHooker hooker) {
         ensureAttached();
-        return mBase.invokeOrigin(method, thisObject, args);
-    }
-
-    @Override
-    public final <T> void invokeOrigin(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
-        ensureAttached();
-        mBase.invokeOrigin(constructor, thisObject, args);
+        return mBase.hookClassInitializer(origin, priority, hooker);
     }
 
     @NonNull
     @Override
-    public final <T> T newInstanceOrigin(@NonNull Constructor<T> constructor, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException {
+    public MethodInvoker getInvoker(@NonNull Method method, @Nullable Integer priority) {
         ensureAttached();
-        return mBase.newInstanceOrigin(constructor, args);
-    }
-
-    @Nullable
-    @Override
-    public final Object invokeSpecial(@NonNull Method method, @NonNull Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
-        ensureAttached();
-        return mBase.invokeSpecial(method, thisObject, args);
-    }
-
-    @Override
-    public final <T> void invokeSpecial(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException {
-        ensureAttached();
-        mBase.invokeSpecial(constructor, thisObject, args);
+        return mBase.getInvoker(method, priority);
     }
 
     @NonNull
     @Override
-    public final <T, U> U newInstanceSpecial(@NonNull Constructor<T> constructor, @NonNull Class<U> subClass, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException {
+    public <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @Nullable Integer priority) {
         ensureAttached();
-        return mBase.newInstanceSpecial(constructor, subClass, args);
+        return mBase.getInvoker(constructor, priority);
     }
 
     @Override
