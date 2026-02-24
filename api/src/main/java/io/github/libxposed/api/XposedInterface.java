@@ -34,7 +34,7 @@ public interface XposedInterface {
     /**
      * The framework allows dynamically loaded code to use Xposed APIs.
      */
-    long CAP_RT_API_REFLECTION = 1L << 2;
+    long CAP_RT_DYNAMIC_CODE_API_ACCESS = 1L << 2;
 
     /**
      * The default hook priority.
