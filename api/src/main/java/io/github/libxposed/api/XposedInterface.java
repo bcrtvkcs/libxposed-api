@@ -321,8 +321,8 @@ public interface XposedInterface {
     /**
      * Hook a method.
      *
-     * @param origin   The method to be hooked
-     * @param hooker   The hooker object
+     * @param origin The method to be hooked
+     * @param hooker The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is abstract, framework internal or {@link Method#invoke},
      *                                  or hooker is invalid
@@ -334,8 +334,8 @@ public interface XposedInterface {
     /**
      * Hook a constructor.
      *
-     * @param origin   The constructor to be hooked
-     * @param hooker   The hooker object
+     * @param origin The constructor to be hooked
+     * @param hooker The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is framework internal or {@link Constructor#newInstance},
      *                                  or hooker is invalid
@@ -350,8 +350,8 @@ public interface XposedInterface {
      * Note: If the class is initialized, the hook will never be called.
      * </p>
      *
-     * @param origin   The class to be hooked
-     * @param hooker   The hooker object
+     * @param origin The class to be hooked
+     * @param hooker The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if class has no static initializer or hooker is invalid
      * @throws HookFailedError          if hook fails due to framework internal error
@@ -464,6 +464,17 @@ public interface XposedInterface {
      */
     @NonNull
     <T, U> U newInstanceSpecial(@NonNull Constructor<T> constructor, @NonNull Class<U> subClass, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
+
+    /**
+     * Writes a message to the Xposed log.
+     *
+     * @param priority The log priority, see {@link android.util.Log}
+     * @param tag      The log tag
+     * @param msg      The log message
+     */
+    default void log(int priority, @Nullable String tag, @NonNull String msg) {
+        log(priority, tag, msg, null);
+    }
 
     /**
      * Writes a message to the Xposed log.
