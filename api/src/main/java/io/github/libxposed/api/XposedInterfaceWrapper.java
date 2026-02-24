@@ -44,7 +44,7 @@ public class XposedInterfaceWrapper implements XposedInterface {
     }
 
     @Override
-    public int getApiVersion() {
+    public final int getApiVersion() {
         ensureAttached();
         return mBase.getApiVersion();
     }
