@@ -14,6 +14,7 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import io.github.libxposed.api.errors.HookFailedError;
 import io.github.libxposed.api.utils.DexParser;
@@ -156,10 +157,23 @@ public interface XposedInterface {
         T getExecutable();
 
         /**
-         * Gets the arguments used for the method call or construction.
+         * Gets the arguments. The returned list is immutable. If you want to change the arguments, you
+         * should call {@code proceed(Object...)} or {@code proceedWith(Object, Object...)} with the new
+         * arguments.
          */
         @NonNull
-        Object[] getArgs();
+        List<Object> getArgs();
+
+        /**
+         * Gets the argument at the given index.
+         *
+         * @param index The argument index
+         * @return The argument at the given index
+         * @throws IndexOutOfBoundsException if index is out of bounds
+         * @throws ClassCastException        if the argument cannot be cast to the expected type
+         */
+        @Nullable
+        <U> U getArg(int index) throws IndexOutOfBoundsException, ClassCastException;
     }
 
     /**
@@ -194,7 +208,20 @@ public interface XposedInterface {
         Object proceed(Object... args) throws Throwable;
 
         /**
+         * Proceeds to the next interceptor in the chain with the same arguments and given {@code this} pointer.
+         * Static method interceptors should not call this.
+         *
+         * @param thisObject The {@code this} pointer for the method call, or {@code null} for static calls
+         * @return The result returned from next interceptor or the original method if current
+         * interceptor is the last one in the chain
+         * @throws Throwable if any interceptor or the original method throws an exception
+         */
+        @Nullable
+        Object proceedWith(@NonNull Object thisObject) throws Throwable;
+
+        /**
          * Proceeds to the next interceptor in the chain with the given arguments and {@code this} pointer.
+         * Static method interceptors should not call this.
          *
          * @param thisObject The {@code this} pointer for the method call, or {@code null} for static calls
          * @param args       The arguments used for the method call
@@ -203,7 +230,7 @@ public interface XposedInterface {
          * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
-        Object proceedWith(Object thisObject, Object... args) throws Throwable;
+        Object proceedWith(@NonNull Object thisObject, Object... args) throws Throwable;
     }
 
     /**
@@ -233,13 +260,21 @@ public interface XposedInterface {
         void proceed(Object... args) throws Throwable;
 
         /**
+         * Proceeds to the next interceptor in the chain with the same arguments and given {@code this} pointer.
+         *
+         * @param thisObject The instance being constructed
+         * @throws Throwable if any interceptor or the original constructor throws an exception
+         */
+        void proceedWith(@NonNull Object thisObject) throws Throwable;
+
+        /**
          * Proceeds to the next interceptor in the chain with the given arguments and {@code this} pointer.
          *
          * @param thisObject The instance being constructed
          * @param args       The arguments used for the construction
          * @throws Throwable if any interceptor or the original constructor throws an exception
          */
-        void proceedWith(Object thisObject, Object... args) throws Throwable;
+        void proceedWith(@NonNull Object thisObject, Object... args) throws Throwable;
     }
 
     /**
