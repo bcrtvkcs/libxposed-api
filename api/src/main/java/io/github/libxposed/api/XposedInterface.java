@@ -44,11 +44,11 @@ public interface XposedInterface {
     /**
      * Execute at the end of the interception chain.
      */
-    int PRIORITY_LOWEST = -10000;
+    int PRIORITY_LOWEST = Integer.MIN_VALUE;
     /**
      * Execute at the beginning of the interception chain.
      */
-    int PRIORITY_HIGHEST = 10000;
+    int PRIORITY_HIGHEST = Integer.MAX_VALUE;
 
     /**
      * Invoker for a method or constructor.
@@ -56,6 +56,31 @@ public interface XposedInterface {
      * @param <T> {@link Method} or {@link Constructor}
      */
     interface Invoker<T extends Executable> {
+        sealed interface Type permits Type.Origin, Type.Chain {
+            /**
+             * Invoking the original executable, skipping all the hooks
+             */
+            Origin ORIGIN = new Origin();
+
+            /**
+             * Invoking the original executable, skipping all the hooks
+             */
+            record Origin() implements Type {
+            }
+
+            /**
+             * Invoking the executable starting from the middle of the hook chain, skipping all the
+             * hooks with priority higher than the given value.
+             *
+             * @param maxPriority
+             */
+            record Chain(int maxPriority) implements Type {
+                /**
+                 * Invoking the executable with full hook chain.
+                 */
+                public static final Chain FULL = new Chain(PRIORITY_HIGHEST);
+            }
+        }
     }
 
     /**
@@ -476,25 +501,46 @@ public interface XposedInterface {
     boolean deoptimize(@NonNull Executable executable);
 
     /**
-     * Get a method invoker for the given method and priority.
+     * Get a method invoker for the given method with full hook chain.
      *
-     * @param method   The method to get the invoker for
-     * @param priority The priority of the invoker, or null for the original method without any hooks.
+     * @param method The method to get the invoker for
      * @return The method invoker
      */
     @NonNull
-    MethodInvoker getInvoker(@NonNull Method method, @Nullable Integer priority);
+    MethodInvoker getInvoker(@NonNull Method method);
 
     /**
-     * Get a constructor invoker for the given constructor and priority.
+     * Get a method invoker for the given method and type.
+     *
+     * @param method The method to get the invoker for
+     * @param type   The type of the invoker, can be used to invoke the original method or to invoke
+     *               the method starting from a specific priority in the hook chain
+     * @return The method invoker
+     */
+    @NonNull
+    MethodInvoker getInvoker(@NonNull Method method, @NonNull Invoker.Type type);
+
+    /**
+     * Get a constructor invoker for the given constructor with full hook chain.
      *
      * @param constructor The constructor to get the invoker for
-     * @param priority    The priority of the invoker, or null for the original constructor without any hooks.
      * @param <T>         The type of the constructor
      * @return The constructor invoker
      */
     @NonNull
-    <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @Nullable Integer priority);
+    <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor);
+
+    /**
+     * Get a constructor invoker for the given constructor and type.
+     *
+     * @param constructor The constructor to get the invoker for
+     * @param type        The type of the invoker, can be used to invoke the original method or to invoke
+     *                    the method starting from a specific priority in the hook chain
+     * @param <T>         The type of the constructor
+     * @return The constructor invoker
+     */
+    @NonNull
+    <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @NonNull Invoker.Type type);
 
     /**
      * Writes a message to the Xposed log.

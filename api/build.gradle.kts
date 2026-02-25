@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "io.github.libxposed.api"
     compileSdk = 36
-    buildToolsVersion = "35.0.0"
+    buildToolsVersion = "36.1.0"
     androidResources.enable = false
 
     defaultConfig {
@@ -20,8 +20,8 @@ android {
     }
 
     compileOptions {
-        targetCompatibility = JavaVersion.VERSION_1_8
-        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_21
     }
 
     publishing {
