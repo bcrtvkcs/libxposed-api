@@ -215,7 +215,7 @@ public interface XposedInterface {
          * Proceeds to the next interceptor in the chain with the same arguments and {@code this} pointer.
          *
          * @return The result returned from next interceptor or the original method if current
-         * interceptor is the last one in the chain
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
          * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
@@ -226,7 +226,7 @@ public interface XposedInterface {
          *
          * @param args The arguments used for the method call
          * @return The result returned from next interceptor or the original method if current
-         * interceptor is the last one in the chain
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
          * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
@@ -236,9 +236,9 @@ public interface XposedInterface {
          * Proceeds to the next interceptor in the chain with the same arguments and given {@code this} pointer.
          * Static method interceptors should not call this.
          *
-         * @param thisObject The {@code this} pointer for the method call, or {@code null} for static calls
+         * @param thisObject The {@code this} pointer for the method call
          * @return The result returned from next interceptor or the original method if current
-         * interceptor is the last one in the chain
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
          * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
@@ -248,10 +248,10 @@ public interface XposedInterface {
          * Proceeds to the next interceptor in the chain with the given arguments and {@code this} pointer.
          * Static method interceptors should not call this.
          *
-         * @param thisObject The {@code this} pointer for the method call, or {@code null} for static calls
+         * @param thisObject The {@code this} pointer for the method call
          * @param args       The arguments used for the method call
          * @return The result returned from next interceptor or the original method if current
-         * interceptor is the last one in the chain
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
          * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
@@ -267,7 +267,7 @@ public interface XposedInterface {
          * the chain is called.
          */
         @NonNull
-        Object getThisObject();
+        T getThisObject();
 
         /**
          * Proceeds to the next interceptor in the chain with the same arguments and {@code this} pointer.
@@ -320,6 +320,7 @@ public interface XposedInterface {
          * @param chain The interceptor chain for the method call
          * @return The result to be returned from the interceptor. If the hooker does not want to
          * change the result, it should call {@code chain.proceed()} and return its result.
+         * <p>For void methods, the return value is ignored by the framework.</p>
          * @throws Throwable Throw any exception from the interceptor. The exception will
          *                   propagate to the caller if not caught by any interceptor.
          */
@@ -354,7 +355,7 @@ public interface XposedInterface {
         T getExecutable();
 
         /**
-         * Cancels the hook. The behavior of calling this method multiple times is undefined.
+         * Cancels the hook. This method is idempotent. It is safe to call this method multiple times.
          */
         void unhook();
     }

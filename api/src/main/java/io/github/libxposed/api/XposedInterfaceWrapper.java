@@ -83,6 +83,13 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
+    public final HookHandle<Method> hook(@NonNull Method origin, int priority, @NonNull MethodHooker hooker) {
+        ensureAttached();
+        return mBase.hook(origin, priority, hooker);
+    }
+
+    @NonNull
+    @Override
     public final <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, @NonNull CtorHooker<T> hooker) {
         ensureAttached();
         return mBase.hook(origin, hooker);
@@ -90,7 +97,7 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public HookHandle<Method> hook(@NonNull Method origin, int priority, @NonNull MethodHooker hooker) {
+    public final <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, int priority, @NonNull CtorHooker<T> hooker) {
         ensureAttached();
         return mBase.hook(origin, priority, hooker);
     }
@@ -104,9 +111,9 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, int priority, @NonNull CtorHooker<T> hooker) {
+    public final HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull MethodHooker hooker) {
         ensureAttached();
-        return mBase.hook(origin, priority, hooker);
+        return mBase.hookClassInitializer(origin, priority, hooker);
     }
 
     @Override
@@ -117,35 +124,28 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull MethodHooker hooker) {
-        ensureAttached();
-        return mBase.hookClassInitializer(origin, priority, hooker);
-    }
-
-    @NonNull
-    @Override
-    public MethodInvoker getInvoker(@NonNull Method method) {
+    public final MethodInvoker getInvoker(@NonNull Method method) {
         ensureAttached();
         return mBase.getInvoker(method);
     }
 
     @NonNull
     @Override
-    public MethodInvoker getInvoker(@NonNull Method method, @NonNull Invoker.Type type) {
+    public final MethodInvoker getInvoker(@NonNull Method method, @NonNull Invoker.Type type) {
         ensureAttached();
         return mBase.getInvoker(method, type);
     }
 
     @NonNull
     @Override
-    public <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor) {
+    public final <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor) {
         ensureAttached();
         return mBase.getInvoker(constructor);
     }
 
     @NonNull
     @Override
-    public <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @NonNull Invoker.Type type) {
+    public final <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @NonNull Invoker.Type type) {
         ensureAttached();
         return mBase.getInvoker(constructor, type);
     }
