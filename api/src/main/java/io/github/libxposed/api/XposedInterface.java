@@ -14,6 +14,7 @@ import java.lang.reflect.Executable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import io.github.libxposed.api.errors.HookFailedError;
 import io.github.libxposed.api.utils.DexParser;
@@ -34,25 +35,146 @@ public interface XposedInterface {
     /**
      * The framework allows dynamically loaded code to use Xposed APIs.
      */
-    long CAP_RT_API_REFLECTION = 1L << 2;
+    long CAP_RT_DYNAMIC_CODE_API_ACCESS = 1L << 2;
 
     /**
      * The default hook priority.
      */
     int PRIORITY_DEFAULT = 50;
     /**
-     * Execute the hook callback late.
+     * Execute at the end of the interception chain.
      */
-    int PRIORITY_LOWEST = -10000;
+    int PRIORITY_LOWEST = Integer.MIN_VALUE;
     /**
-     * Execute the hook callback early.
+     * Execute at the beginning of the interception chain.
      */
-    int PRIORITY_HIGHEST = 10000;
+    int PRIORITY_HIGHEST = Integer.MAX_VALUE;
 
     /**
-     * Contextual interface for before invocation callbacks.
+     * Invoker for a method or constructor.
+     *
+     * @param <T> {@link Method} or {@link Constructor}
      */
-    interface BeforeHookCallback<T extends Executable> {
+    interface Invoker<T extends Executable> {
+        sealed interface Type permits Type.Origin, Type.Chain {
+            /**
+             * Invoking the original executable, skipping all the hooks
+             */
+            Origin ORIGIN = new Origin();
+
+            /**
+             * Invoking the original executable, skipping all the hooks
+             */
+            record Origin() implements Type {
+            }
+
+            /**
+             * Invoking the executable starting from the middle of the hook chain, skipping all the
+             * hooks with priority higher than the given value.
+             *
+             * @param maxPriority
+             */
+            record Chain(int maxPriority) implements Type {
+                /**
+                 * Invoking the executable with full hook chain.
+                 */
+                public static final Chain FULL = new Chain(PRIORITY_HIGHEST);
+            }
+        }
+    }
+
+    /**
+     * Invoker for a method.
+     */
+    interface MethodInvoker extends Invoker<Method> {
+        /**
+         * Invoke the method interception chain starting from the invoker's priority.
+         *
+         * @param thisObject For non-static calls, the {@code this} pointer, otherwise {@code null}
+         * @param args       The arguments used for the method call
+         * @return The result returned from the invoked method
+         * @see Method#invoke(Object, Object...)
+         */
+        @Nullable
+        Object invoke(@Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+
+        /**
+         * Invokes a special (non-virtual) method on a given object instance, similar to the functionality of
+         * {@code CallNonVirtual<type>Method} in JNI, which invokes an instance (nonstatic) method on a Java
+         * object. This method is useful when you need to call a specific method on an object, bypassing any
+         * overridden methods in subclasses and directly invoking the method defined in the specified class.
+         *
+         * <p>This method is useful when you need to call {@code super.xxx()} in a hooked constructor.</p>
+         *
+         * @param thisObject The {@code this} pointer
+         * @param args       The arguments used for the method call
+         * @return The result returned from the invoked method
+         * @see Method#invoke(Object, Object...)
+         */
+        @Nullable
+        Object invokeSpecial(@NonNull Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+    }
+
+    /**
+     * Invoker for a constructor.
+     *
+     * @param <T> The type of the constructor
+     */
+    interface CtorInvoker<T> extends Invoker<Constructor<T>> {
+        /**
+         * Invoke the constructor interception chain as a method starting from the invoker's priority.
+         *
+         * @param thisObject The instance to be constructed
+         * @param args       The arguments used for the construction
+         * @see Constructor#newInstance(Object...)
+         */
+        void invoke(@NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+
+        /**
+         * Invoke the constructor starting from the invoker's priority.
+         *
+         * @param args The arguments used for the construction
+         * @return The instance created and initialized by the constructor
+         * @see Constructor#newInstance(Object...)
+         */
+        @NonNull
+        T newInstance(Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
+
+        /**
+         * Invokes a special (non-virtual) method on a given object instance, similar to the functionality of
+         * {@code CallNonVirtual<type>Method} in JNI, which invokes an instance (nonstatic) method on a Java
+         * object. This method is useful when you need to call a specific method on an object, bypassing any
+         * overridden methods in subclasses and directly invoking the method defined in the specified class.
+         *
+         * <p>This method is useful when you need to call {@code super.xxx()} in a hooked constructor.</p>
+         *
+         * @param thisObject The instance to be constructed
+         * @param args       The arguments used for the construction
+         * @see Constructor#newInstance(Object...)
+         */
+        void invokeSpecial(@NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+
+        /**
+         * Creates a new instance of the given subclass, but initialize it with a parent constructor. This could
+         * leave the object in an invalid state, where the subclass constructor are not called and the fields
+         * of the subclass are not initialized.
+         *
+         * <p>This method is useful when you need to initialize some fields in the subclass by yourself.</p>
+         *
+         * @param <U>      The type of the subclass
+         * @param subClass The subclass to create a new instance
+         * @param args     The arguments used for the construction
+         * @return The instance of subclass initialized by the constructor
+         * @see Constructor#newInstance(Object...)
+         */
+        @NonNull
+        <U> U newInstanceSpecial(@NonNull Class<U> subClass, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
+    }
+
+    /**
+     * Interceptor chain for a method or constructor.
+     */
+    interface Chain<T extends Executable> {
         /**
          * Gets the method / constructor being hooked.
          */
@@ -60,164 +182,164 @@ public interface XposedInterface {
         T getExecutable();
 
         /**
-         * Gets the {@code this} object, or {@code null} if the method is static.
-         */
-        @Nullable
-        Object getThisObject();
-
-        /**
-         * Gets the arguments passed to the method / constructor. You can modify the arguments.
+         * Gets the arguments. The returned list is immutable. If you want to change the arguments, you
+         * should call {@code proceed(Object...)} or {@code proceedWith(Object, Object...)} with the new
+         * arguments.
          */
         @NonNull
-        Object[] getArgs();
+        List<Object> getArgs();
 
         /**
-         * Sets the return value of the method and skip the invocation. If the procedure is a constructor,
-         * the {@code result} param will be ignored.
-         * Note that the after invocation callback will still be called.
+         * Gets the argument at the given index.
          *
-         * @param result The return value
+         * @param index The argument index
+         * @return The argument at the given index
+         * @throws IndexOutOfBoundsException if index is out of bounds
+         * @throws ClassCastException        if the argument cannot be cast to the expected type
          */
-        void returnAndSkip(@Nullable Object result);
-
-        /**
-         * Throw an exception from the method / constructor and skip the invocation.
-         * Note that the after invocation callback will still be called.
-         *
-         * @param throwable The exception to be thrown
-         */
-        void throwAndSkip(@Nullable Throwable throwable);
+        @Nullable
+        <U> U getArg(int index) throws IndexOutOfBoundsException, ClassCastException;
     }
 
     /**
-     * Contextual interface for after invocation callbacks.
+     * Interceptor chain for a method.
      */
-    interface AfterHookCallback<T extends Executable> {
+    interface MethodChain extends Chain<Method> {
         /**
-         * Gets the method / constructor being hooked.
-         */
-        @NonNull
-        T getExecutable();
-
-        /**
-         * Gets the {@code this} object, or {@code null} if the method is static.
+         * Gets the {@code this} pointer for the method call, or {@code null} for static calls.
          */
         @Nullable
         Object getThisObject();
 
         /**
-         * Gets all arguments passed to the method / constructor.
-         */
-        @NonNull
-        Object[] getArgs();
-
-        /**
-         * Gets the return value of the method or the before invocation callback. If the procedure is a
-         * constructor, a void method or an exception was thrown, the return value will be {@code null}.
+         * Proceeds to the next interceptor in the chain with the same arguments and {@code this} pointer.
+         *
+         * @return The result returned from next interceptor or the original method if current
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
+         * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
-        Object getResult();
+        Object proceed() throws Throwable;
 
         /**
-         * Gets the exception thrown by the method / constructor or the before invocation callback. If the
-         * procedure call was successful, the return value will be {@code null}.
+         * Proceeds to the next interceptor in the chain with the given arguments and the same {@code this} pointer.
+         *
+         * @param args The arguments used for the method call
+         * @return The result returned from next interceptor or the original method if current
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
+         * @throws Throwable if any interceptor or the original method throws an exception
          */
         @Nullable
-        Throwable getThrowable();
+        Object proceed(Object... args) throws Throwable;
 
         /**
-         * Gets whether the invocation was skipped by the before invocation callback.
-         */
-        boolean isSkipped();
-
-        /**
-         * Sets the return value of the method and skip the invocation. If the procedure is a constructor,
-         * the {@code result} param will be ignored.
+         * Proceeds to the next interceptor in the chain with the same arguments and given {@code this} pointer.
+         * Static method interceptors should not call this.
          *
-         * @param result The return value
+         * @param thisObject The {@code this} pointer for the method call
+         * @return The result returned from next interceptor or the original method if current
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
+         * @throws Throwable if any interceptor or the original method throws an exception
          */
-        void setResult(@Nullable Object result);
+        @Nullable
+        Object proceedWith(@NonNull Object thisObject) throws Throwable;
 
         /**
-         * Sets the exception thrown by the method / constructor.
+         * Proceeds to the next interceptor in the chain with the given arguments and {@code this} pointer.
+         * Static method interceptors should not call this.
          *
-         * @param throwable The exception to be thrown.
+         * @param thisObject The {@code this} pointer for the method call
+         * @param args       The arguments used for the method call
+         * @return The result returned from next interceptor or the original method if current
+         * interceptor is the last one in the chain. For void methods, always returns {@code null}.
+         * @throws Throwable if any interceptor or the original method throws an exception
          */
-        void setThrowable(@Nullable Throwable throwable);
+        @Nullable
+        Object proceedWith(@NonNull Object thisObject, Object... args) throws Throwable;
     }
 
     /**
-     * Interface for method / constructor hooking.
+     * Interceptor chain for a constructor.
+     */
+    interface CtorChain<T> extends Chain<Constructor<T>> {
+        /**
+         * Gets the instance being constructed. Note that the instance may be not fully initialized when
+         * the chain is called.
+         */
+        @NonNull
+        T getThisObject();
+
+        /**
+         * Proceeds to the next interceptor in the chain with the same arguments and {@code this} pointer.
+         *
+         * @throws Throwable if any interceptor or the original constructor throws an exception
+         */
+        void proceed() throws Throwable;
+
+        /**
+         * Proceeds to the next interceptor in the chain with the given arguments and the same {@code this} pointer.
+         *
+         * @param args The arguments used for the construction
+         * @throws Throwable if any interceptor or the original constructor throws an exception
+         */
+        void proceed(Object... args) throws Throwable;
+
+        /**
+         * Proceeds to the next interceptor in the chain with the same arguments and given {@code this} pointer.
+         *
+         * @param thisObject The instance being constructed
+         * @throws Throwable if any interceptor or the original constructor throws an exception
+         */
+        void proceedWith(@NonNull Object thisObject) throws Throwable;
+
+        /**
+         * Proceeds to the next interceptor in the chain with the given arguments and {@code this} pointer.
+         *
+         * @param thisObject The instance being constructed
+         * @param args       The arguments used for the construction
+         * @throws Throwable if any interceptor or the original constructor throws an exception
+         */
+        void proceedWith(@NonNull Object thisObject, Object... args) throws Throwable;
+    }
+
+    /**
+     * Hooker for a method or constructor.
      *
-     * <p>Example usage:</p>
-     *
-     * <pre>{@code
-     *   public class ExampleHooker implements SimpleHooker<Method> {
-     *
-     *       @Override
-     *       void before(@NonNull BeforeHookCallback<Method> callback) {
-     *           // Pre-hooking logic goes here
-     *       }
-     *
-     *       @Override
-     *       void after(@NonNull AfterHookCallback<Method> callback) {
-     *           // Post-hooking logic goes here
-     *       }
-     *   }
-     *
-     *   public class ExampleHookerWithContext implements ContextualHooker<Method, MyContext> {
-     *
-     *       @Override
-     *       MyContext before(@NonNull BeforeHookCallback<Method> callback) {
-     *           // Pre-hooking logic goes here
-     *           return new MyContext();
-     *       }
-     *
-     *       @Override
-     *       void after(@NonNull AfterHookCallback<Method> callback, MyContext context) {
-     *           // Post-hooking logic goes here
-     *       }
-     *   }
-     * }</pre>
+     * @param <T> {@link Method} or {@link Constructor}
      */
     interface Hooker<T extends Executable> {
+    }
+
+    /**
+     * Hooker for a method.
+     */
+    interface MethodHooker extends Hooker<Method> {
         /**
-         * Returns the priority of the hook. Hooks with higher priority will be executed first. The default
-         * priority is {@link #PRIORITY_DEFAULT}. Make sure the value is consistent after the hooker is installed,
-         * otherwise the behavior is undefined.
+         * Intercepts a method call.
          *
-         * @return The priority of the hook
+         * @param chain The interceptor chain for the method call
+         * @return The result to be returned from the interceptor. If the hooker does not want to
+         * change the result, it should call {@code chain.proceed()} and return its result.
+         * <p>For void methods, the return value is ignored by the framework.</p>
+         * @throws Throwable Throw any exception from the interceptor. The exception will
+         *                   propagate to the caller if not caught by any interceptor.
          */
-        default int getPriority() {
-            return PRIORITY_DEFAULT;
-        }
+        @Nullable
+        Object intercept(@NonNull MethodChain chain) throws Throwable;
     }
 
     /**
-     * A hooker without context.
+     * Hooker for a constructor.
      */
-    interface SimpleHooker<T extends Executable> extends Hooker<T> {
-
-        default void before(@NonNull BeforeHookCallback<T> callback) {
-        }
-
-        default void after(@NonNull AfterHookCallback<T> callback) {
-        }
-    }
-
-    /**
-     * A hooker with context. The context object is guaranteed to be the same between before and after
-     * invocation.
-     *
-     * @param <C> The type of the context
-     */
-    interface ContextualHooker<T extends Executable, C> extends Hooker<T> {
-        default C before(@NonNull BeforeHookCallback<T> callback) {
-            return null;
-        }
-
-        default void after(@NonNull AfterHookCallback<T> callback, @Nullable C context) {
-        }
+    interface CtorHooker<T> extends Hooker<Constructor<T>> {
+        /**
+         * Intercepts a constructor call.
+         *
+         * @param chain The interceptor chain for the constructor call
+         * @throws Throwable Throw any exception from the interceptor. The exception will
+         *                   propagate to the caller if not caught by any interceptor.
+         */
+        void intercept(@NonNull CtorChain<T> chain) throws Throwable;
     }
 
     /**
@@ -233,51 +355,9 @@ public interface XposedInterface {
         T getExecutable();
 
         /**
-         * Cancels the hook. The behavior of calling this method multiple times is undefined.
+         * Cancels the hook. This method is idempotent. It is safe to call this method multiple times.
          */
         void unhook();
-    }
-
-    /**
-     * Handle for a method hook.
-     */
-    interface MethodHookHandle extends HookHandle<Method> {
-        /**
-         * Invoke the original method, but keeps all higher priority hooks.
-         *
-         * @param thisObject For non-static calls, the {@code this} pointer, otherwise {@code null}
-         * @param args       The arguments used for the method call
-         * @return The result returned from the invoked method
-         * @see Method#invoke(Object, Object...)
-         */
-        @Nullable
-        Object invokeOrigin(@Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
-    }
-
-    /**
-     * Handle for a constructor hook.
-     *
-     * @param <T> The type of the constructor
-     */
-    interface CtorHookHandle<T> extends HookHandle<Constructor<T>> {
-        /**
-         * Invoke the original constructor as a method, but keeps all higher priority hooks.
-         *
-         * @param thisObject The instance to be constructed
-         * @param args       The arguments used for the construction
-         * @see Constructor#newInstance(Object...)
-         */
-        void invokeOrigin(@NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
-
-        /**
-         * Invoke the original constructor, but keeps all higher priority hooks.
-         *
-         * @param args The arguments used for the construction
-         * @return The instance created and initialized by the constructor
-         * @see Constructor#newInstance(Object...)
-         */
-        @NonNull
-        T newInstanceOrigin(Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
     }
 
     /**
@@ -319,9 +399,23 @@ public interface XposedInterface {
     long getFrameworkCapabilities();
 
     /**
-     * Hook a method.
+     * Hook a method with default priority.
+     *
+     * @param origin The method to be hooked
+     * @param hooker The hooker object
+     * @return Handle for the hook
+     * @throws IllegalArgumentException if origin is abstract, framework internal or {@link Method#invoke},
+     *                                  or hooker is invalid
+     * @throws HookFailedError          if hook fails due to framework internal error
+     */
+    @NonNull
+    HookHandle<Method> hook(@NonNull Method origin, @NonNull MethodHooker hooker);
+
+    /**
+     * Hook a method with the given priority.
      *
      * @param origin   The method to be hooked
+     * @param priority The priority of the hook
      * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is abstract, framework internal or {@link Method#invoke},
@@ -329,12 +423,26 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    MethodHookHandle hook(@NonNull Method origin, @NonNull Hooker<Method> hooker);
+    HookHandle<Method> hook(@NonNull Method origin, int priority, @NonNull MethodHooker hooker);
 
     /**
-     * Hook a constructor.
+     * Hook a constructor with default priority.
+     *
+     * @param origin The constructor to be hooked
+     * @param hooker The hooker object
+     * @return Handle for the hook
+     * @throws IllegalArgumentException if origin is framework internal or {@link Constructor#newInstance},
+     *                                  or hooker is invalid
+     * @throws HookFailedError          if hook fails due to framework internal error
+     */
+    @NonNull
+    <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, @NonNull CtorHooker<T> hooker);
+
+    /**
+     * Hook a constructor with the given priority.
      *
      * @param origin   The constructor to be hooked
+     * @param priority The priority of the hook
      * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if origin is framework internal or {@link Constructor#newInstance},
@@ -342,7 +450,7 @@ public interface XposedInterface {
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    <T> CtorHookHandle<T> hook(@NonNull Constructor<T> origin, @NonNull Hooker<Constructor<T>> hooker);
+    <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, int priority, @NonNull CtorHooker<T> hooker);
 
     /**
      * Hook the static initializer of a class.
@@ -350,14 +458,30 @@ public interface XposedInterface {
      * Note: If the class is initialized, the hook will never be called.
      * </p>
      *
+     * @param origin The class to be hooked
+     * @param hooker The hooker object
+     * @return Handle for the hook
+     * @throws IllegalArgumentException if class has no static initializer or hooker is invalid
+     * @throws HookFailedError          if hook fails due to framework internal error
+     */
+    @NonNull
+    HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, @NonNull MethodHooker hooker);
+
+    /**
+     * Hook the static initializer of a class with the given priority.
+     * <p>
+     * Note: If the class is initialized, the hook will never be called.
+     * </p>
+     *
      * @param origin   The class to be hooked
+     * @param priority The priority of the hook
      * @param hooker   The hooker object
      * @return Handle for the hook
      * @throws IllegalArgumentException if class has no static initializer or hooker is invalid
      * @throws HookFailedError          if hook fails due to framework internal error
      */
     @NonNull
-    MethodHookHandle hookClassInitializer(@NonNull Class<?> origin, @NonNull Hooker<Method> hooker);
+    HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull MethodHooker hooker);
 
     /**
      * Deoptimizes a method / constructor in case hooked callee is not called because of inline.
@@ -378,92 +502,55 @@ public interface XposedInterface {
     boolean deoptimize(@NonNull Executable executable);
 
     /**
-     * Basically the same as {@link Method#invoke(Object, Object...)}, but skips all Xposed hooks.
-     * If you do not want to skip higher priority hooks, use {@link MethodHookHandle#invokeOrigin(Object, Object...)} instead.
+     * Get a method invoker for the given method with full hook chain.
      *
-     * @param method     The method to be called
-     * @param thisObject For non-static calls, the {@code this} pointer, otherwise {@code null}
-     * @param args       The arguments used for the method call
-     * @return The result returned from the invoked method
-     * @see Method#invoke(Object, Object...)
+     * @param method The method to get the invoker for
+     * @return The method invoker
      */
-    @Nullable
-    Object invokeOrigin(@NonNull Method method, @Nullable Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+    @NonNull
+    MethodInvoker getInvoker(@NonNull Method method);
 
     /**
-     * Invoke the constructor as a method, but skips all Xposed hooks.
-     * If you do not want to skip higher priority hooks, use {@link CtorHookHandle#invokeOrigin(Object, Object...)} instead.
+     * Get a method invoker for the given method and type.
      *
-     * @param constructor The constructor to create and initialize a new instance
-     * @param thisObject  The instance to be constructed
-     * @param args        The arguments used for the construction
-     * @param <T>         The type of the instance
-     * @see Constructor#newInstance(Object...)
+     * @param method The method to get the invoker for
+     * @param type   The type of the invoker, can be used to invoke the original method or to invoke
+     *               the method starting from a specific priority in the hook chain
+     * @return The method invoker
      */
-    <T> void invokeOrigin(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
+    @NonNull
+    MethodInvoker getInvoker(@NonNull Method method, @NonNull Invoker.Type type);
 
     /**
-     * Basically the same as {@link Constructor#newInstance(Object...)}, but skips all Xposed hooks.
-     * If you do not want to skip higher priority hooks, use {@link CtorHookHandle#newInstanceOrigin(Object...)} instead.
+     * Get a constructor invoker for the given constructor with full hook chain.
      *
+     * @param constructor The constructor to get the invoker for
      * @param <T>         The type of the constructor
-     * @param constructor The constructor to create and initialize a new instance
-     * @param args        The arguments used for the construction
-     * @return The instance created and initialized by the constructor
-     * @see Constructor#newInstance(Object...)
+     * @return The constructor invoker
      */
     @NonNull
-    <T> T newInstanceOrigin(@NonNull Constructor<T> constructor, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
+    <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor);
 
     /**
-     * Invokes a special (non-virtual) method on a given object instance, similar to the functionality of
-     * {@code CallNonVirtual<type>Method} in JNI, which invokes an instance (nonstatic) method on a Java
-     * object. This method is useful when you need to call a specific method on an object, bypassing any
-     * overridden methods in subclasses and directly invoking the method defined in the specified class.
+     * Get a constructor invoker for the given constructor and type.
      *
-     * <p>This method is useful when you need to call {@code super.xxx()} in a hooked constructor.</p>
-     *
-     * @param method     The method to be called
-     * @param thisObject For non-static calls, the {@code this} pointer, otherwise {@code null}
-     * @param args       The arguments used for the method call
-     * @return The result returned from the invoked method
-     * @see Method#invoke(Object, Object...)
-     */
-    @Nullable
-    Object invokeSpecial(@NonNull Method method, @NonNull Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
-
-    /**
-     * Invokes a special (non-virtual) method on a given object instance, similar to the functionality of
-     * {@code CallNonVirtual<type>Method} in JNI, which invokes an instance (nonstatic) method on a Java
-     * object. This method is useful when you need to call a specific method on an object, bypassing any
-     * overridden methods in subclasses and directly invoking the method defined in the specified class.
-     *
-     * <p>This method is useful when you need to call {@code super.xxx()} in a hooked constructor.</p>
-     *
-     * @param constructor The constructor to create and initialize a new instance
-     * @param thisObject  The instance to be constructed
-     * @param args        The arguments used for the construction
-     * @see Constructor#newInstance(Object...)
-     */
-    <T> void invokeSpecial(@NonNull Constructor<T> constructor, @NonNull T thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
-
-    /**
-     * Creates a new instance of the given subclass, but initialize it with a parent constructor. This could
-     * leave the object in an invalid state, where the subclass constructor are not called and the fields
-     * of the subclass are not initialized.
-     *
-     * <p>This method is useful when you need to initialize some fields in the subclass by yourself.</p>
-     *
-     * @param <T>         The type of the parent constructor
-     * @param <U>         The type of the subclass
-     * @param constructor The parent constructor to initialize a new instance
-     * @param subClass    The subclass to create a new instance
-     * @param args        The arguments used for the construction
-     * @return The instance of subclass initialized by the constructor
-     * @see Constructor#newInstance(Object...)
+     * @param constructor The constructor to get the invoker for
+     * @param type        The type of the invoker, can be used to invoke the original method or to invoke
+     *                    the method starting from a specific priority in the hook chain
+     * @param <T>         The type of the constructor
+     * @return The constructor invoker
      */
     @NonNull
-    <T, U> U newInstanceSpecial(@NonNull Constructor<T> constructor, @NonNull Class<U> subClass, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException, InstantiationException;
+    <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @NonNull Invoker.Type type);
+
+    /**
+     * Writes a message to the Xposed log.
+     *
+     * @param priority The log priority, see {@link android.util.Log}
+     * @param tag      The log tag
+     * @param msg      The log message
+     */
+    void log(int priority, @Nullable String tag, @NonNull String msg);
 
     /**
      * Writes a message to the Xposed log.
