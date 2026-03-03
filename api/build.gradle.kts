@@ -32,12 +32,17 @@ android {
     }
 }
 
+dependencies {
+    compileOnly(libs.annotation)
+    compileOnly(libs.kotlin.stdlib)
+}
+
 publishing {
     publications {
         register<MavenPublication>("api") {
             artifactId = "api"
             group = "io.github.libxposed"
-            version = "100"
+            version = "101.0.0"
             pom {
                 name.set("api")
                 description.set("Modern Xposed API")
@@ -88,10 +93,4 @@ signing {
         useInMemoryPgpKeys(signingKey, signingPassword)
         sign(publishing.publications)
     }
-}
-
-
-dependencies {
-    compileOnly(libs.annotation)
-    lintPublish(project(":checks"))
 }

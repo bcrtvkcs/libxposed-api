@@ -8,20 +8,16 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-
-import io.github.libxposed.api.utils.DexParser;
 
 /**
- * Wrap of {@link XposedInterface} used by the modules for the purpose of shielding framework implementation details.
+ * Wrapper of {@link XposedInterface} used by modules to shield framework implementation details.
  */
 public class XposedInterfaceWrapper implements XposedInterface {
 
-    private XposedInterface mBase;
+    private volatile XposedInterface mBase;
 
     /**
      * Attaches the framework interface to the module. Modules should never call this method.
@@ -45,7 +41,7 @@ public class XposedInterfaceWrapper implements XposedInterface {
     @Override
     public final int getApiVersion() {
         ensureAttached();
-        return mBase.getApiVersion();
+        return XposedInterface.super.getApiVersion();
     }
 
     @NonNull
@@ -76,44 +72,23 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public final HookHandle<Method> hook(@NonNull Method origin, @NonNull MethodHooker hooker) {
+    public final MethodHookBuilder hook(@NonNull Method origin) {
         ensureAttached();
-        return mBase.hook(origin, hooker);
+        return mBase.hook(origin);
     }
 
     @NonNull
     @Override
-    public final HookHandle<Method> hook(@NonNull Method origin, int priority, @NonNull MethodHooker hooker) {
+    public final <T> CtorHookBuilder<T> hook(@NonNull Constructor<T> origin) {
         ensureAttached();
-        return mBase.hook(origin, priority, hooker);
+        return mBase.hook(origin);
     }
 
     @NonNull
     @Override
-    public final <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, @NonNull CtorHooker<T> hooker) {
+    public final MethodHookBuilder hookClassInitializer(@NonNull Class<?> origin) {
         ensureAttached();
-        return mBase.hook(origin, hooker);
-    }
-
-    @NonNull
-    @Override
-    public final <T> HookHandle<Constructor<T>> hook(@NonNull Constructor<T> origin, int priority, @NonNull CtorHooker<T> hooker) {
-        ensureAttached();
-        return mBase.hook(origin, priority, hooker);
-    }
-
-    @NonNull
-    @Override
-    public final HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, @NonNull MethodHooker hooker) {
-        ensureAttached();
-        return mBase.hookClassInitializer(origin, hooker);
-    }
-
-    @NonNull
-    @Override
-    public final HookHandle<Method> hookClassInitializer(@NonNull Class<?> origin, int priority, @NonNull MethodHooker hooker) {
-        ensureAttached();
-        return mBase.hookClassInitializer(origin, priority, hooker);
+        return mBase.hookClassInitializer(origin);
     }
 
     @Override
@@ -131,42 +106,21 @@ public class XposedInterfaceWrapper implements XposedInterface {
 
     @NonNull
     @Override
-    public final MethodInvoker getInvoker(@NonNull Method method, @NonNull Invoker.Type type) {
-        ensureAttached();
-        return mBase.getInvoker(method, type);
-    }
-
-    @NonNull
-    @Override
     public final <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor) {
         ensureAttached();
         return mBase.getInvoker(constructor);
     }
 
-    @NonNull
-    @Override
-    public final <T> CtorInvoker<T> getInvoker(@NonNull Constructor<T> constructor, @NonNull Invoker.Type type) {
-        ensureAttached();
-        return mBase.getInvoker(constructor, type);
-    }
-
     @Override
     public final void log(int priority, @Nullable String tag, @NonNull String msg) {
         ensureAttached();
-        mBase.log(priority, tag, msg, null);
+        mBase.log(priority, tag, msg);
     }
 
     @Override
     public final void log(int priority, @Nullable String tag, @NonNull String msg, @Nullable Throwable tr) {
         ensureAttached();
         mBase.log(priority, tag, msg, tr);
-    }
-
-    @Nullable
-    @Override
-    public final DexParser parseDex(@NonNull ByteBuffer dexData, boolean includeAnnotations) throws IOException {
-        ensureAttached();
-        return mBase.parseDex(dexData, includeAnnotations);
     }
 
     @NonNull
