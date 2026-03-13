@@ -101,7 +101,6 @@ public interface XposedInterface {
          * <p>For void methods and constructors, always returns {@code null}.</p>
          * @see Method#invoke(Object, Object...)
          */
-        @Nullable
         Object invoke(Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
 
         /**
@@ -119,7 +118,6 @@ public interface XposedInterface {
          * <p>For void methods and constructors, always returns {@code null}.</p>
          * @see Method#invoke(Object, Object...)
          */
-        @Nullable
         Object invokeSpecial(@NonNull Object thisObject, Object... args) throws InvocationTargetException, IllegalArgumentException, IllegalAccessException;
     }
 
@@ -159,12 +157,17 @@ public interface XposedInterface {
     /**
      * Interceptor chain for a method or constructor.
      */
-    interface Chain<T extends Executable> {
+    interface Chain {
         /**
          * Gets the method / constructor being hooked.
          */
         @NonNull
-        T getExecutable();
+        Executable getExecutable();
+
+        /**
+         * Gets the {@code this} pointer for the call, or {@code null} for static methods.
+         */
+        Object getThisObject();
 
         /**
          * Gets the arguments. The returned list is immutable. If you want to change the arguments, you
@@ -182,13 +185,7 @@ public interface XposedInterface {
          * @throws IndexOutOfBoundsException if index is out of bounds
          * @throws ClassCastException        if the argument cannot be cast to the expected type
          */
-        @Nullable
-        <U> U getArg(int index) throws IndexOutOfBoundsException, ClassCastException;
-
-        /**
-         * Gets the {@code this} pointer for the call, or {@code null} for static methods.
-         */
-        Object getThisObject();
+        Object getArg(int index) throws IndexOutOfBoundsException, ClassCastException;
 
         /**
          * Proceeds to the next interceptor in the chain with the same arguments and {@code this} pointer.
@@ -239,10 +236,8 @@ public interface XposedInterface {
 
     /**
      * Hooker for a method or constructor.
-     *
-     * @param <T> {@link Method} or {@link Constructor}
      */
-    interface Hooker<T extends Executable> {
+    interface Hooker {
         /**
          * Intercepts a method / constructor call.
          *
@@ -253,21 +248,18 @@ public interface XposedInterface {
          * @throws Throwable Throw any exception from the interceptor. The exception will
          *                   propagate to the caller if not caught by any interceptor.
          */
-        @Nullable
-        Object intercept(@NonNull Chain<T> chain) throws Throwable;
+        Object intercept(@NonNull Chain chain) throws Throwable;
     }
 
     /**
      * Handle for a hook.
-     *
-     * @param <T> {@link Method} or {@link Constructor}
      */
-    interface HookHandle<T extends Executable> {
+    interface HookHandle {
         /**
          * Gets the method / constructor being hooked.
          */
         @NonNull
-        T getExecutable();
+        Executable getExecutable();
 
         /**
          * Cancels the hook. This method is idempotent. It is safe to call this method multiple times.
@@ -277,10 +269,8 @@ public interface XposedInterface {
 
     /**
      * Builder for configuring a hook.
-     *
-     * @param <T> {@link Method} or {@link Constructor}
      */
-    interface HookBuilder<T extends Executable> {
+    interface HookBuilder {
         /**
          * Sets the priority of the hook. Hooks with higher priority will be called before hooks with lower
          * priority. The default priority is {@link XposedInterface#PRIORITY_DEFAULT}.
@@ -288,7 +278,7 @@ public interface XposedInterface {
          * @param priority The priority of the hook
          * @return The builder itself for chaining
          */
-        HookBuilder<T> setPriority(int priority);
+        HookBuilder setPriority(int priority);
 
         /**
          * Sets the hooker for the method / constructor and builds the hook.
@@ -300,7 +290,7 @@ public interface XposedInterface {
          * @throws HookFailedError          if hook fails due to framework internal error
          */
         @NonNull
-        HookHandle<T> intercept(@NonNull Hooker<? super T> hooker);
+        HookHandle intercept(@NonNull Hooker hooker);
     }
 
     /**
@@ -340,7 +330,7 @@ public interface XposedInterface {
      * @return The builder for the hook
      */
     @NonNull
-    <T extends Executable> HookBuilder<T> hook(@NonNull T origin);
+    HookBuilder hook(@NonNull Executable origin);
 
     /**
      * Hook the static initializer ({@code <clinit>}) of a class.
@@ -361,7 +351,7 @@ public interface XposedInterface {
      * @return The builder for the hook
      */
     @NonNull
-    HookBuilder<Method> hookClassInitializer(@NonNull Class<?> origin);
+    HookBuilder hookClassInitializer(@NonNull Class<?> origin);
 
     /**
      * Deoptimizes a method / constructor in case hooked callee is not called because of inline.
@@ -425,7 +415,7 @@ public interface XposedInterface {
      * Gets the application info of the module.
      */
     @NonNull
-    ApplicationInfo getApplicationInfo();
+    ApplicationInfo getModuleApplicationInfo();
 
     /**
      * Gets remote preferences stored in Xposed framework. Note that those are read-only in hooked apps.
